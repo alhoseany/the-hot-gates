@@ -1,152 +1,34 @@
 import './style.css';
-import { createAudio } from './audio.js';
-import { createRenderer } from './render.js';
-import {
-  clearSelection,
-  clearTowerSelection,
-  createGame,
-  cycleTarget,
-  handlePad,
-  selectTower,
-  selectType,
-  sellTower,
-  sendWave,
-  setSpeed,
-  startGame,
-  update,
-  upgradeTower,
-} from './sim.js';
-import { createUI } from './ui.js';
-import { selectLevel } from './data.js';
-import { setGraphicsVersion } from './version.js';
-
-const canvas = document.querySelector('#view');
-const ui = createUI(document.querySelector('#ui'));
-const audio = createAudio();
-
-function showBootError(error) {
-  console.error(error);
-  const box = document.createElement('p');
-  box.id = 'boot-error';
-  box.textContent = 'The battlefield could not be drawn in this browser. WebGL needs to be enabled.';
-  box.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:20;margin:0;padding:12px 14px;background:#3a1410;color:#f6ead8;pointer-events:auto';
-  document.body.appendChild(box);
-}
-
-let state = createGame();
-
-function drain() {
-  if (!state.sfx.length) return;
-  if (state.muted) {
-    state.sfx.length = 0;
-    return;
-  }
-  for (const name of state.sfx) audio.play(name);
-  state.sfx.length = 0;
-}
-
-function begin() {
-  const muted = state.muted;
-  state = startGame({ muted });
-  audio.setMuted(muted);
-  audio.unlock();
-}
-
-function leaveBattle() {
-  const muted = state.muted;
-  state = createGame();
-  state.muted = muted;
-  audio.setMuted(muted);
-}
-
-let renderer;
-try {
-  renderer = createRenderer(canvas, {
-    onPick(pick) {
-      audio.unlock();
-      if (state.status !== 'playing' || state.paused || state.help) return;
-      if (pick.towerId != null) selectTower(state, pick.towerId);
-      else if (pick.padIndex != null) handlePad(state, pick.padIndex);
-      else clearTowerSelection(state);
-      drain();
-    },
-  });
-} catch (error) {
-  showBootError(error);
-}
-
-if (renderer) {
-
-renderer.setPickGate(() => state.status === 'playing' && !state.paused && !state.help);
-
-ui.on((event) => {
-  audio.unlock();
-  if (event.type === 'begin' || event.type === 'restart') begin();
-  else if (event.type === 'pause' && state.status === 'playing') state.paused = !state.paused;
-  else if (event.type === 'mute') {
-    state.muted = !state.muted;
-    audio.setMuted(state.muted);
-    if (!state.muted) audio.play('click');
-  } else if (event.type === 'help') state.help = !state.help;
-  else if (event.type === 'speed') setSpeed(state, event.value);
-  else if (event.type === 'version') setGraphicsVersion(event.value);
-  else if (event.type === 'level') selectLevel(event.value);
-  else if (event.type === 'leave') leaveBattle();
-  else if (event.type === 'type') selectType(state, event.value);
-  else if (event.type === 'send') sendWave(state);
-  else if (event.type === 'upgrade') upgradeTower(state);
-  else if (event.type === 'sell') sellTower(state);
-  else if (event.type === 'target') cycleTarget(state);
-  drain();
-});
-
-window.addEventListener('keydown', (event) => {
-  if (event.repeat) return;
-  if (event.code === 'Space') event.preventDefault();
-  audio.unlock();
-  if (event.code === 'Escape') {
-    if (state.help) state.help = false;
-    else if (state.selectedTowerId || state.selectedType) clearSelection(state);
-    else if (state.status === 'playing') state.paused = !state.paused;
-  } else if (state.status !== 'playing') {
-    if (event.code === 'KeyM') {
-      state.muted = !state.muted;
-      audio.setMuted(state.muted);
-    }
-  } else if (!state.help) {
-    if (event.code === 'Digit1') selectType(state, 'hoplite');
-    else if (event.code === 'Digit2') selectType(state, 'archer');
-    else if (event.code === 'Digit3') selectType(state, 'oil');
-    else if (event.code === 'Digit4') selectType(state, 'scorpion');
-    else if (event.code === 'Space') sendWave(state);
-    else if (event.code === 'KeyU') upgradeTower(state);
-    else if (event.code === 'KeyX') sellTower(state);
-    else if (event.code === 'KeyR') cycleTarget(state);
-    else if (event.code === 'KeyF') setSpeed(state, state.speed === 1 ? 2 : state.speed === 2 ? 3 : 1);
-    else if (event.code === 'KeyP') state.paused = !state.paused;
-    else if (event.code === 'KeyM') {
-      state.muted = !state.muted;
-      audio.setMuted(state.muted);
-    }
-  }
-  drain();
-});
-
-let last = performance.now();
-function frame(now) {
-  const realDt = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  if (state.status === 'playing' && !state.paused && !state.help) {
-    update(state, realDt * state.speed);
-    drain();
-  }
-  renderer.frame(state, realDt);
-  ui.sync(state);
-  const hovering = renderer.hovered;
-  canvas.style.cursor = renderer.dragging ? 'grabbing' : hovering ? 'pointer' : 'default';
-  requestAnimationFrame(frame);
-}
-
-ui.sync(state);
-requestAnimationFrame(frame);
-}
+import {Game,LEVELS,TOWERS,wavePlan,ENEMIES} from './game.js';
+import {World} from './world.js';
+import {LANDSCAPES} from './landscape.js';
+const $=s=>document.querySelector(s);
+let game,world,selectedType='arrow',selectedTower=null,paused=false,speed=1,toastTimer,audio,sound=false,style='diorama',victories={};
+try{victories=JSON.parse(localStorage.getItem('siegecraft-victories')||'{}');if(!victories||typeof victories!=='object')victories={};style=localStorage.getItem('siegecraft-style')||style;}catch{}
+const notes=['Beware the mountain trail.','Defend in both directions.','Every stone has a price.','Watch the horizon.','Hold until the dawn.'];
+function toast(message){$('#toast').textContent=message;$('#toast').classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('visible'),3400);}
+function beep(freq=440,duration=.06){if(!sound)return;try{audio??=new AudioContext();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.type='triangle';osc.frequency.value=freq;gain.gain.setValueAtTime(.025,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);osc.connect(gain);gain.connect(audio.destination);osc.start();osc.stop(audio.currentTime+duration);}catch{}}
+function openModal(html){$('#modal-content').innerHTML=html;if(!$('#modal').open)$('#modal').showModal();}
+function loadLevel(index){$('#modal').close();selectedTower=null;paused=false;speed=1;$('#speed').textContent='1×';$('#pause').textContent='Ⅱ';$('#pause').setAttribute('aria-label','Pause');$('#paused-overlay').hidden=true;game=new Game(index,onEvent);world.load(game);const l=game.level;$('#chapter').textContent=String(index+1).padStart(2,'0');$('#level-title').innerHTML=l.name+'<span>.</span>';$('#level-subtitle').innerHTML=`${l.place} · ${l.year} <span>—</span> ${l.subtitle}`;$('#map-name').textContent=l.place.toUpperCase();$('#terrain-description').textContent=LANDSCAPES[l.biome].label;$('#field-note').textContent=l.mechanic;$('#note-title').textContent=notes[index];$('#selection-panel').hidden=true;renderCampaign();renderCards();updateUI();toast('Choose a defense, then click a circular build site.');}
+function onEvent(event){world?.event(event);if(event.type==='build')beep(550);if(event.type==='shot'&&Math.random()<.12)beep(180,.03);if(event.type==='wave'){toast(game.index===0&&game.wave===5?'The mountain trail is open. Defend the southern flank!':`Wave ${game.wave} · ${game.queue.length} enemies approaching`);beep(330,.16);}if(event.type==='clear'){toast(`Wave cleared · +${35+game.wave*6} gold${game.index===2?' · 15 gold repairs':''}${game.index===3&&[3,6].includes(game.wave)?' · +70 relief supplies':''}`);beep(660,.15);}if(event.type==='won'){victories[game.index]=Math.max(Number(victories[game.index])||0,game.lives);try{localStorage.setItem('siegecraft-victories',JSON.stringify(victories));}catch{}renderCampaign();result(true);}if(event.type==='lost')result(false);}
+function result(won){const final=game.index===4;openModal(`<div class="eyebrow">${won?'THE CHRONICLE CONTINUES':'EVERY DEFEAT TEACHES'}</div><div class="result-icon">${won?'♜':'⚑'}</div><h2>${won?(final?'The dawn is yours.':'The line holds.'):'The defenses have fallen.'}</h2><p>${won?(final?'The Winged Hussars arrive. You have held Vienna and completed the final battle.':`${game.level.place} is safe. Your defenders held against every assault.`):'Rebuild your strategy: combine slowing fire with bombards, and place a rally standard near your strongest defenses.'}</p><p>${game.kills} enemies defeated · ${game.lives} lives remaining · ${game.wave} waves faced</p><button class="primary" id="result-next">${won&&!final?'Next battle':won?'Return to campaign':'Try this battle again'} <span>→</span></button><button class="text-button" id="inspect-result" style="margin-top:16px">Inspect battlefield</button>`);$('#result-next').onclick=()=>{if(won&&final)showCampaign();else loadLevel(won?game.index+1:game.index);};$('#inspect-result').onclick=()=>$('#modal').close();}
+function renderCards(){$('#tower-cards').innerHTML=Object.entries(TOWERS).map(([key,t],i)=>`<button class="tower-card ${selectedType===key?'selected':''}" data-tower="${key}" aria-pressed="${selectedType===key}" title="${t.description}"><span class="tower-icon">${t.icon}</span><span class="tower-text"><strong>${t.name}</strong><small>${t.tag}</small></span><span class="tower-cost">${t.cost} ◈</span><span class="tower-key">${i+1}</span></button>`).join('');document.querySelectorAll('[data-tower]').forEach(b=>b.onclick=()=>chooseType(b.dataset.tower));}
+function chooseType(type){selectedType=type;selectedTower=null;$('#selection-panel').hidden=true;world.select(null);renderCards();toast(`${TOWERS[type].name} · ${TOWERS[type].description}`);}
+function onPad(pad){if(['won','lost'].includes(game.status)){toast('Battle finished. Choose another battle or restart.');return;}const t=game.towers.find(t=>t.pad===pad);if(t){selectedTower=t.id;world.select(pad,t.type,t.level);renderSelection();return;}const built=game.build(pad,selectedType);if(!built){toast(`You need ${TOWERS[selectedType].cost} gold for this defense.`);return;}selectedTower=built.id;world.select(pad,built.type,built.level);renderSelection();updateUI();}
+function renderSelection(){const t=game.towers.find(t=>t.id===selectedTower);if(!t){$('#selection-panel').hidden=true;return;}const s=TOWERS[t.type];$('#selection-panel').hidden=false;$('#selection-panel').innerHTML=`<button id="close-selection" aria-label="Close tower details">×</button><strong>${s.name} · Level ${t.level}</strong><p>${s.description}<br>${s.damage?`${Math.round(s.damage*(1+(t.level-1)*.65))} damage · `:''}${(s.range+(t.level-1)*.35).toFixed(1)} range</p><div class="actions"><button id="upgrade" ${t.level>=3||game.gold<game.upgradeCost(t)?'disabled':''}>${t.level>=3?'Fully upgraded':`Upgrade · ${game.upgradeCost(t)} ◈`}</button><button id="sell">Sell · ${Math.floor(t.spent*.7)} ◈</button></div>`;$('#close-selection').onclick=()=>{selectedTower=null;world.select(null);renderSelection();};$('#upgrade').onclick=()=>{if(game.upgrade(t.id)){world.select(t.pad,t.type,t.level);beep(750);renderSelection();updateUI();}};$('#sell').onclick=()=>{game.sell(t.id);selectedTower=null;world.select(null);renderSelection();updateUI();};}
+function renderCampaign(){$('#level-cards').innerHTML=LEVELS.map((l,i)=>`<button class="level-card ${i===game.index?'active':''}" data-level="${i}"><span class="level-number">${String(i+1).padStart(2,'0')}</span><span><strong>${l.place}</strong><small>${l.year}</small></span><span class="check">${victories[i]?'✓':i===game.index?'↗':''}</span></button>`).join('');document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>requestLevel(Number(b.dataset.level)));}
+function requestLevel(index){if(index===game.index)return;if(game.wave>0&&!['won','lost'].includes(game.status)){openModal(`<div class="eyebrow">CHANGE BATTLE</div><h2>Leave this stand?</h2><p>Your current battle will restart when you return. Completed victories remain saved.</p><button class="primary" id="confirm-level">Go to ${LEVELS[index].place} →</button><button class="text-button" id="keep-playing" style="margin-top:16px">Keep defending</button>`);$('#confirm-level').onclick=()=>loadLevel(index);$('#keep-playing').onclick=()=>$('#modal').close();}else loadLevel(index);}
+function showCampaign(){openModal(`<div class="eyebrow">THE DEFENDERS’ CHRONICLE</div><h2>Five ages. Five last stands.</h2><p>Play in order or choose any battle. Victories are saved on this browser.</p><div class="dialog-grid">${LEVELS.map((l,i)=>`<button data-campaign="${i}">${victories[i]?'✓ ':''}${l.place}<small>${l.year} · ${l.waves} waves</small></button>`).join('')}</div><button class="text-button" id="restart-level" style="margin-top:22px">↻ Restart current battle</button>`);document.querySelectorAll('[data-campaign]').forEach(b=>b.onclick=()=>{$('#modal').close();requestLevel(Number(b.dataset.campaign));});$('#restart-level').onclick=()=>loadLevel(game.index);}
+function updateUI(){if(!game)return;$('#gold').textContent=game.gold;$('#lives').textContent=game.lives;$('#wave').textContent=`${game.wave} / ${game.level.waves}`;$('#map-status').textContent=paused?'PAUSED':game.status==='won'?'VICTORY':game.status==='lost'?'DEFEAT':game.active?'DEFENSE IN PROGRESS':'PREPARATION PHASE';const start=$('#start-wave');start.disabled=game.active||paused;start.innerHTML=game.status==='won'?'Battle won <span>✓</span>':game.status==='lost'?'Try again <span>↻</span>':game.active?`Defending <span>···</span>`:`Send wave ${game.wave+1} <span>→</span>`;if(game.status==='won')start.disabled=false;
+ const types=[...new Set(wavePlan(game.index,Math.min(game.wave+1,game.level.waves)))];$('#wave-heading').textContent=game.active?`Wave ${game.wave}. Hold the line.`:game.status==='won'?'A stand worthy of the chronicle.':game.status==='lost'?'A new strategy. A new chance.':game.wave?`Wave ${game.wave} survived. Reinforce your defenses.`:'A quiet moment before the storm.';$('#wave-description').textContent=game.active?`${game.enemies.length} on the field · ${game.queue.length} incoming`:game.status==='won'?game.level.objective:game.wave===0?'Place your defenses, then send the first wave.':`Next: ${types.map(t=>ENEMIES[t].name).join(', ')}`;
+ $('#ability').disabled=!game.active||game.spellCooldown>0||paused;$('#ability-label').textContent=game.spellCooldown>0?`Ready in ${Math.ceil(game.spellCooldown)}s`:'95 damage to all enemies · R';if(selectedTower){const t=game.towers.find(t=>t.id===selectedTower),b=$('#upgrade');if(t&&b&&t.level<3)b.disabled=game.gold<game.upgradeCost(t);}}
+function togglePause(){paused=!paused;$('#paused-overlay').hidden=!paused;$('#pause').textContent=paused?'▶':'Ⅱ';$('#pause').setAttribute('aria-label',paused?'Resume':'Pause');updateUI();}
+const captions={diorama:'Handcrafted terrain. Warm light. A world in miniature.',blueprint:'Every edge exposed. Tactical wireframes on drafting blue.',neon:'After dark. Electric color and luminous defenses.',parchment:'Sepia earth and ink. A battle from the pages of a chronicle.'};
+function setStyle(s){if(!captions[s])s='diorama';style=s;document.body.dataset.style=s;world.setStyle(s);document.querySelectorAll('#style-switcher [data-style]').forEach(b=>{b.classList.toggle('active',b.dataset.style===s);b.setAttribute('aria-pressed',b.dataset.style===s);});$('#style-caption').textContent=captions[s];try{localStorage.setItem('siegecraft-style',s);}catch{}}
+try{world=new World($('#battlefield'),onPad);loadLevel(0);setStyle(style);}catch(error){openModal(`<div class="eyebrow">GRAPHICS UNAVAILABLE</div><h2>A 3D browser is needed.</h2><p>Enable WebGL and hardware acceleration in a current desktop or mobile browser, then reload.</p>`);console.error(error);throw error;}
+$('#start-wave').onclick=()=>{if(game.status==='won'){if(game.index<4)loadLevel(game.index+1);else showCampaign();}else if(game.status==='lost')loadLevel(game.index);else if(!paused)game.startWave();updateUI();};$('#pause').onclick=togglePause;$('#speed').onclick=()=>{speed=speed===1?2:speed===2?3:1;$('#speed').textContent=`${speed}×`;};$('#sound').onclick=()=>{sound=!sound;$('#sound').setAttribute('aria-pressed',sound);$('#sound').setAttribute('aria-label',sound?'Mute sound':'Enable sound');beep(600);};$('#ability').onclick=()=>{if(game.ability()){beep(180,.3);toast('Rally! Every enemy takes 95 damage and slows.');updateUI();}};$('#fullscreen').onclick=toggleFullscreen;document.addEventListener('fullscreenchange',()=>{const full=!!document.fullscreenElement;$('#fullscreen').setAttribute('aria-label',full?'Exit fullscreen':'Enter fullscreen');$('#fullscreen').setAttribute('aria-pressed',full);$('#fullscreen').title=full?'Exit fullscreen (F)':'Enter fullscreen (F)';});$('#reset-view').onclick=()=>world.resetCamera();$('#campaign-button').onclick=showCampaign;$('#help-button').onclick=()=>openModal(`<div class="eyebrow">THE ART OF THE DEFENSE</div><h2>A good plan holds.</h2><p><b>${game.level.place}:</b> ${game.level.mechanic}</p><p>${LANDSCAPES[game.level.biome].description}</p><ol><li>Choose a tower, then click a circular site to build.</li><li>Send a wave when ready. Enemies follow the pale roads.</li><li>Click a built tower to upgrade or sell it for 70%.</li><li>Pair Greek fire’s slow with bombard splash damage.</li><li>Rally standards give nearby towers +35% damage.</li><li>Rally (R) deals 95 damage to every enemy.</li><li>Hold every wave with at least one life to win.</li></ol><p>Armored guards resist archers. Healers restore nearby enemies. Bosses cost four lives if they escape.</p><p><b>Controls</b> · 1–4 select towers · Space pauses · R rallies · Escape clears selection. Drag to orbit; scroll or pinch to zoom. Choose any of the five battles from Campaign. Press F or use ⛶ to toggle browser fullscreen.</p>`);$('#close-modal').onclick=()=>$('#modal').close();$('#modal').addEventListener('click',e=>{if(e.target===$('#modal')){const r=$('#modal').getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)$('#modal').close();}});document.querySelectorAll('#style-switcher [data-style]').forEach(b=>b.onclick=()=>setStyle(b.dataset.style));
+async function toggleFullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else toast('Use your browser’s fullscreen command. The game already fills the window.');}catch{toast('Fullscreen is unavailable here. The game still fills the window.');}}
+window.addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||$('#modal').open)return;if(['Space','Digit1','Digit2','Digit3','Digit4','KeyR','KeyF','Escape'].includes(e.code))e.preventDefault();if(e.code==='KeyF')toggleFullscreen();if(e.code==='Space')togglePause();if(/^Digit[1-4]$/.test(e.code))chooseType(Object.keys(TOWERS)[Number(e.code.slice(-1))-1]);if(e.code==='KeyR')$('#ability').click();if(e.code==='Escape'){selectedTower=null;$('#selection-panel').hidden=true;world.select(null);}});
+let last=performance.now(),acc=0,ui=0;
+world.renderer.setAnimationLoop(now=>{const dt=Math.min((now-last)/1000,.08);last=now;if(!paused&&!$('#modal').open){acc+=dt*speed;while(acc>=1/60){game.tick(1/60);acc-=1/60;}}world.render(dt,now/1000);ui+=dt;if(ui>.15){updateUI();ui=0;}});
+window.siegecraft={get state(){return {index:game.index,gold:game.gold,lives:game.lives,wave:game.wave,status:game.status,active:game.active,towers:game.towers.map(t=>({...t})),enemies:game.enemies.length,style,paused,speed};},padScreen(index){const p=world.padMeshes[index].getWorldPosition(world.pointerWorld??=world.camera.position.clone()).project(world.camera),r=world.canvas.getBoundingClientRect();return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};}};

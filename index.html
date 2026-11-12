@@ -1,19 +1,12 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>The Hot Gates</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@380;500;650&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <canvas id="view"></canvas>
-    <div id="ui"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
-</html>
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f4f2e9"><meta name="description" content="Five historic sieges. Four ways to see them. A 3D tower defense campaign."><title>Siegecraft — Five Ages</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%232f5442'/%3E%3Cpath d='M18 46V24h6v6h6V18h6v12h6v-6h6v22Z' fill='%23f4f2e9'/%3E%3C/svg%3E"></head>
+<body><div id="app">
+<header class="topbar"><a class="brand" href="./" aria-label="Siegecraft home"><span class="brand-mark">♜</span><span>SIEGECRAFT<small>FIVE AGES · ONE LAST STAND</small></span></a><nav><button id="campaign-button" class="text-button"><span>⊞</span> Campaign</button><button id="help-button" class="text-button">How to play <span>↗</span></button></nav><div class="header-end"><span class="live-dot"></span> A little strategy. A lot of history.</div></header>
+<main><div class="page-heading"><div><div class="eyebrow">THE DEFENDERS’ CHRONICLE <span>/</span> CHAPTER <b id="chapter">01</b></div><h1 id="level-title">The Hot Gates<span>.</span></h1><p id="level-subtitle">Thermopylae · 480 BCE <span>—</span> Hold the mountain pass</p><p id="terrain-description"></p></div><div class="heading-note"><span>BUILD WISELY. HOLD YOUR GROUND.</span><p>History remembers the defenders.</p></div></div>
+<div class="game-layout"><section class="battle-panel" aria-label="3D battlefield"><div class="battle-toolbar"><div class="stats"><div><span class="stat-icon">◈</span><strong id="gold">270</strong><small>GOLD</small></div><div><span class="heart">♥</span><strong id="lives">20</strong><small>LIVES</small></div><div><span class="stat-icon">⚑</span><strong id="wave">0 / 8</strong><small>WAVE</small></div></div><div class="play-controls"><button id="fullscreen" title="Enter fullscreen (F)" aria-label="Enter fullscreen">⛶</button><button id="sound" title="Toggle sound" aria-label="Enable sound">♫</button><button id="pause" title="Pause (Space)" aria-label="Pause">Ⅱ</button><button id="speed" title="Change game speed">1×</button></div></div>
+<div id="viewport"><canvas id="battlefield" aria-label="Interactive 3D battlefield. Choose a defense and click a circular build site."></canvas><div class="map-label"><span class="live-dot"></span> <span id="map-name">THERMOPYLAE</span><small id="map-status">PREPARATION PHASE</small></div><div id="toast" role="status"></div><div class="map-compass"><span>N</span><div>✥</div></div><div class="map-hint">Drag to orbit <span>·</span> Scroll to zoom <span>·</span> Click a build site</div><button id="reset-view" title="Reset camera">⌖</button><div id="paused-overlay" hidden>PAUSED<small>Press Space to resume</small></div></div>
+<div class="battle-footer"><div><span class="signal-icon">≋</span><div><strong id="wave-heading">A quiet moment before the storm.</strong><p id="wave-description">Place your defenses, then send the first wave.</p></div></div><button id="start-wave" class="primary">Send wave 1 <span>→</span></button></div></section>
+<aside class="sidebar"><section class="arsenal"><div class="section-label">YOUR DEFENSES <span>01 — 04</span></div><h2>Make your stand.</h2><p class="section-intro">Choose a tower. Claim a build site.</p><div id="tower-cards"></div><div id="selection-panel" hidden></div><button id="ability" class="ability"><span class="ability-icon">☄</span><span><strong>Rally of the defenders</strong><small id="ability-label">95 damage to all enemies · R</small></span><span id="ability-key">R</span></button></section><section class="field-note"><div class="eyebrow">✧ FIELD NOTES</div><h3 id="note-title">Beware the mountain trail.</h3><p id="field-note"></p><div class="note-foot">A history-inspired campaign <span>↗</span></div></section></aside></div>
+<div class="under-board"><section class="style-section"><div><div class="section-label">A DIFFERENT PERSPECTIVE</div><p>One battlefield. Four worlds.</p></div><div id="style-switcher" aria-label="Graphics style"><button data-style="diorama" class="active"><i class="swatch diorama"></i>Diorama <span>01</span></button><button data-style="blueprint"><i class="swatch blueprint"></i>Blueprint <span>02</span></button><button data-style="neon"><i class="swatch neon"></i>Neon <span>03</span></button><button data-style="parchment"><i class="swatch parchment"></i>Parchment <span>04</span></button></div></section><p class="style-caption" id="style-caption">Handcrafted terrain. Warm light. A world in miniature.</p></div>
+<section class="campaign-strip"><div class="section-label">THE CAMPAIGN <span>FIVE BATTLES THAT ECHO THROUGH TIME</span></div><div id="level-cards"></div></section><footer><span>♜ SIEGECRAFT</span><p>Inspired by history. Shaped by your strategy.</p><span>PLAN. BUILD. DEFEND.</span></footer></main>
+<dialog id="modal"><button id="close-modal" aria-label="Close dialog">×</button><div id="modal-content"></div></dialog></div><script type="module" src="/src/main.js"></script></body></html>

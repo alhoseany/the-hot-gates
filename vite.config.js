@@ -1,12 +1,2 @@
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-  base: './',
-  server: {
-    port: 5173,
-    strictPort: false,
-  },
-  build: {
-    chunkSizeWarningLimit: 800,
-  },
-});
+import {defineConfig} from 'vite';
+export default defineConfig({build:{rollupOptions:{output:{manualChunks:{three:['three']}}}}});
