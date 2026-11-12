@@ -4,6 +4,8 @@ A 3D browser tower defense game. Hold five historical last stands—Thermopylae,
 
 Built by **Grok 4.7 Extra High**.
 
+Alternative implementation: [GPT 6.1 Sol High branch](https://github.com/alhoseany/the-hot-gates/tree/feat/gpt-6.1-sol-high).
+
 ## Screenshots
 
 ![Thermopylae menu in graphics version III](docs/screenshots/thermopylae-menu-iii.png)
