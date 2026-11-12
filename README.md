@@ -4,6 +4,18 @@ A 3D browser tower defense game. Hold five historical last stands—Thermopylae,
 
 Built by **Grok 4.7 Extra High**.
 
+## Screenshots
+
+![Thermopylae menu in graphics version III](docs/screenshots/thermopylae-menu-iii.png)
+
+![Thermopylae battle with tower pads](docs/screenshots/thermopylae-battle-iii.png)
+
+![Tyre island fortress](docs/screenshots/tyre-battle-iii.png)
+
+![Masada desert mesa](docs/screenshots/masada-battle-iii.png)
+
+![Thermopylae in ink-print graphics version IV](docs/screenshots/thermopylae-ink-iv.png)
+
 ## Play
 
 ```bash
